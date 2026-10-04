@@ -3,7 +3,6 @@
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const PORT = process.env.PORT || 3000;
 const SECRET = process.env.SECRET || 'dev-secret-change-me';
-const PUB = path.join(__dirname, 'public');
 
 let store;
 if (process.env.DATABASE_URL) {
@@ -93,14 +92,19 @@ async function api(req, res, url) {
   return send(res, 404, { error: 'Not found' });
 }
 
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png' };
+// Works whether the app files are inside /public or directly in the repo root.
+const PUB = fs.existsSync(path.join(__dirname, 'public', 'index.html')) ? path.join(__dirname, 'public') : __dirname;
+const ALLOW = new Set(['index.html', 'manifest.json', 'sw.js', 'icon-192.png', 'icon-512.png']);
 function serveStatic(req, res, url) {
-  let p = path.normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[\/\\])+/, '');
-  let fp = path.join(PUB, p);
-  if (!fp.startsWith(PUB) || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) fp = path.join(PUB, 'index.html');
+  let name = path.basename(decodeURIComponent(url.pathname));
+  if (!ALLOW.has(name)) name = 'index.html';
+  const fp = path.join(PUB, name);
   const h = { 'Content-Type': MIME[path.extname(fp)] || 'application/octet-stream' };
-  if (/sw\.js$|index\.html$/.test(fp)) h['Cache-Control'] = 'no-cache';
-  res.writeHead(200, h); fs.createReadStream(fp).pipe(res);
+  if (name === 'sw.js' || name === 'index.html') h['Cache-Control'] = 'no-cache';
+  const st = fs.createReadStream(fp);
+  st.on('error', () => { res.writeHead(404); res.end('Not found'); });
+  res.writeHead(200, h); st.pipe(res);
 }
 
 store.init().then(() => {
