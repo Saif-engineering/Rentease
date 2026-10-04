@@ -1,0 +1,9 @@
+{
+  "name": "rentease",
+  "version": "1.0.0",
+  "description": "RentEase - rent manager with cross-device sync",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "pg": "^8.11.0" }
+}
